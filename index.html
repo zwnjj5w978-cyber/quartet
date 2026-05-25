@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0e1116" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Quartet" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230e1116'/><text x='50%25' y='54%25' font-family='-apple-system,system-ui,sans-serif' font-size='110' font-weight='800' text-anchor='middle' dominant-baseline='middle' fill='%23ffb02e'>Q</text></svg>" />
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230e1116'/><text x='50%25' y='56%25' font-family='system-ui' font-size='40' font-weight='800' text-anchor='middle' dominant-baseline='middle' fill='%23ffb02e'>Q</text></svg>" />
+<title>Daily Quartet</title>
+<style>
+:root{--bg:#0e1116;--surface:#181c24;--surface-2:#232936;--border:#2c3340;--text:#e8eaee;--muted:#8c93a3;--accent:#ffb02e;--accent-soft:#ffb02e22;--correct:#4ade80;--wrong:#ef4444}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.app{max-width:480px;margin:0 auto;padding:12px 14px 24px;min-height:100%;display:flex;flex-direction:column}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+.title{font-weight:800;font-size:17px;letter-spacing:.8px}
+.title .a{color:var(--accent)}
+.icon-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:10px;font-size:13px;cursor:pointer;min-height:36px}
+.icon-btn:active{background:var(--surface-2)}
+.date-strip{display:flex;align-items:center;justify-content:center;gap:4px;color:var(--muted);margin-bottom:12px;font-size:13px}
+.date-strip button{background:none;border:none;color:var(--muted);font-size:22px;padding:4px 12px;cursor:pointer;line-height:1}
+.date-strip button:disabled{opacity:.3;cursor:not-allowed}
+.current-date{color:var(--text);font-weight:600;min-width:170px;text-align:center}
+.theme-tag{display:inline-block;background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:999px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;margin-left:6px}
+.theme-tag.revealed{color:var(--accent);border-color:var(--accent)}
+.solved-section{margin-bottom:12px;min-height:8px}
+.solved-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.solved-word{background:var(--surface);border:1px solid var(--correct);color:var(--correct);padding:5px 11px;border-radius:999px;font-weight:700;font-size:12px;letter-spacing:.6px;text-transform:uppercase;animation:pop .4s ease-out}
+@keyframes pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:8px 0 14px}
+.tile{aspect-ratio:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:clamp(13px,4.2vw,17px);cursor:pointer;transition:transform .12s,background .12s,border-color .12s,opacity .35s;text-transform:lowercase;letter-spacing:.3px;padding:2px}
+.tile:active{transform:scale(.94)}
+.tile.sel{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.tile.gone{opacity:0;pointer-events:none;transform:scale(.3)}
+.tile.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+.actions{display:flex;gap:7px;margin-bottom:10px}
+.btn{flex:1;padding:13px 8px;border-radius:11px;border:none;font-weight:700;font-size:14px;cursor:pointer;min-height:46px;font-family:inherit}
+.btn-primary{background:var(--accent);color:#1a1206}
+.btn-primary:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:disabled{opacity:.4;cursor:not-allowed}
+.toast{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 28px);left:50%;transform:translateX(-50%) translateY(24px);background:var(--surface-2);color:var(--text);padding:11px 18px;border-radius:999px;font-size:13px;border:1px solid var(--border);opacity:0;pointer-events:none;transition:all .3s;z-index:100;font-weight:600}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:var(--wrong);color:var(--wrong)}
+.toast.ok{border-color:var(--correct);color:var(--correct)}
+.complete{background:linear-gradient(135deg,var(--accent),#ff8a3d);color:#1a1206;padding:14px;border-radius:12px;text-align:center;margin-bottom:10px;animation:pop .5s}
+.complete h2{margin:0 0 4px;font-size:17px}
+.complete p{margin:0;font-size:13px;opacity:.9}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-bg.open{opacity:1;pointer-events:auto}
+.modal{background:var(--surface);border-radius:16px;max-width:360px;width:100%;padding:16px;border:1px solid var(--border)}
+.modal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.modal-t{font-weight:700;font-size:16px}
+.modal-x{background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;padding:0 6px}
+.cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cal-nav button{background:var(--surface-2);border:none;color:var(--text);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px}
+.cal-month{font-weight:700;font-size:15px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{font-size:10px;color:var(--muted);text-align:center;padding:4px 0;font-weight:600}
+.cal-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;position:relative;font-size:13px;background:var(--surface-2);font-weight:500}
+.cal-cell:active{background:var(--border)}
+.cal-cell.empty{background:transparent;cursor:default}
+.cal-cell.future{opacity:.25;cursor:not-allowed}
+.cal-cell.today{box-shadow:inset 0 0 0 1px var(--accent)}
+.cal-cell.current{background:var(--accent);color:#1a1206;font-weight:800}
+.cal-cell .dot{position:absolute;bottom:4px;width:5px;height:5px;border-radius:50%}
+.cal-cell.done .dot{background:var(--correct)}
+.cal-cell.partial .dot{background:var(--accent)}
+.cal-cell.current .dot{display:none}
+.hint{color:var(--muted);font-size:12px;text-align:center;margin-top:auto;padding-top:10px;line-height:1.5}
+.sel-info{color:var(--muted);font-size:12px;text-align:center;margin-bottom:7px;min-height:16px;font-weight:500}
+.sel-info.full{color:var(--accent)}
+.stats{display:flex;justify-content:space-around;background:var(--surface);border-radius:10px;padding:10px;margin-bottom:8px;border:1px solid var(--border)}
+.stat{text-align:center}
+.stat-v{font-size:18px;font-weight:800;color:var(--accent)}
+.stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">DAILY <span class="a">QUARTET</span></div>
+    <button class="icon-btn" id="cal-btn">📅 Calendar</button>
+  </header>
+  <div class="date-strip">
+    <button id="prev-day">‹</button>
+    <div class="current-date" id="current-date"></div>
+    <button id="next-day">›</button>
+  </div>
+  <div id="banner-slot"></div>
+  <div class="solved-section"><div class="solved-row" id="solved-row"></div></div>
+  <div class="grid" id="grid"></div>
+  <div class="sel-info" id="sel-info">Tap tiles to select fragments</div>
+  <div class="actions">
+    <button class="btn btn-secondary" id="undo-btn" disabled>↶ Undo</button>
+    <button class="btn btn-secondary" id="clear-btn" disabled>Clear</button>
+    <button class="btn btn-primary" id="submit-btn" disabled>Submit</button>
+  </div>
+  <div class="hint" id="hint">Find 5 hidden words. Each is made of exactly 4 fragments.<br>Order doesn't matter — the app figures it out.</div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal-bg" id="cal-modal">
+  <div class="modal">
+    <div class="modal-h"><div class="modal-t">Calendar</div><button class="modal-x" id="cal-close">×</button></div>
+    <div class="cal-nav"><button id="cal-prev">‹</button><div class="cal-month" id="cal-month"></div><button id="cal-next">›</button></div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</div>
+<script>
+/* ============= PUZZLE LIBRARY (100+ sets) ============= */
+const P=[
+{t:"Weather",w:[["pre","cip","i","tate"],["at","mos","pher","ic"],["tem","per","a","ture"],["hu","mid","i","ty"],["ba","rom","e","ter"]]},
+{t:"Vehicles",w:[["au","to","mo","bile"],["mo","tor","cy","cle"],["he","li","cop","ter"],["am","bu","lan","ce"],["sub","ma","ri","ne"]]},
+{t:"Instruments",w:[["pi","a","no","s"],["vi","o","lin","s"],["sax","o","phone","s"],["har","mon","i","ca"],["ac","cor","di","on"]]},
+{t:"Large Animals",w:[["al","li","ga","tor"],["rhi","no","ce","ros"],["ar","ma","dil","lo"],["por","cu","pi","ne"],["sa","la","man","der"]]},
+{t:"Astronomy",w:[["as","tro","no","my"],["ga","lax","i","es"],["tel","e","sco","pe"],["su","per","no","va"],["as","ter","oi","ds"]]},
+{t:"Anatomy",w:[["ab","do","mi","nal"],["e","soph","a","gus"],["in","tes","ti","nal"],["cap","il","lar","ies"],["res","pir","a","tory"]]},
+{t:"Cooking",w:[["in","gre","di","ent"],["ma","ri","na","de"],["cul","i","nar","y"],["ap","pe","ti","zer"],["veg","e","ta","ble"]]},
+{t:"Countries",w:[["ar","gen","ti","na"],["aus","tra","li","a"],["in","do","ne","sia"],["ven","e","zue","la"],["mac","e","do","nia"]]},
+{t:"Technology",w:[["al","go","rithm","s"],["da","ta","ba","se"],["in","ter","fa","ce"],["e","lec","tron","ic"],["pro","cess","or","s"]]},
+{t:"Time",w:[["cen","tu","ri","es"],["mil","len","ni","um"],["mi","cro","sec","ond"],["chro","nol","og","y"],["mo","men","tar","y"]]},
+{t:"Buildings",w:[["a","part","ment","s"],["ca","the","dral","s"],["li","bra","ri","es"],["sky","scrap","er","s"],["mon","u","ment","s"]]},
+{t:"Sports",w:[["bas","ket","ball","s"],["vol","ley","ball","s"],["a","thlet","ic","s"],["tour","na","ment","s"],["cham","pi","on","s"]]},
+{t:"Emotions",w:[["ex","cit","ed","ly"],["fur","i","ous","ly"],["pas","sion","ate","ly"],["en","thu","si","asm"],["mel","an","chol","y"]]},
+{t:"Flowers",w:[["daf","fo","dil","s"],["chrys","an","the","mum"],["hy","a","cinth","s"],["mar","i","gold","s"],["sun","flow","er","s"]]},
+{t:"Insects",w:[["but","ter","fli","es"],["mos","qui","toe","s"],["drag","on","fli","es"],["cat","er","pil","lars"],["grass","hop","per","s"]]},
+{t:"Clothing",w:[["car","di","gan","s"],["pul","lo","ver","s"],["ki","mo","no","s"],["pa","ja","ma","s"],["tur","tle","neck","s"]]},
+{t:"Birds",w:[["pen","gu","in","s"],["car","di","nal","s"],["hum","ming","bird","s"],["wood","peck","er","s"],["pe","li","can","s"]]},
+{t:"Trees",w:[["ev","er","green","s"],["syc","a","mor","es"],["mag","no","li","as"],["ma","ho","ga","ny"],["eu","ca","lyp","tus"]]},
+{t:"Languages",w:[["por","tu","gue","se"],["in","do","ne","sian"],["vi","et","nam","ese"],["nor","we","gi","an"],["hun","gar","i","an"]]},
+{t:"World Cities",w:[["co","pen","ha","gen"],["ca","sa","blan","ca"],["bar","ce","lo","na"],["mon","te","vi","deo"],["al","ex","an","dria"]]},
+{t:"Dinosaurs",w:[["ste","go","sau","rus"],["tri","cer","a","tops"],["bra","chi","o","saur"],["al","lo","sau","rus"],["pte","ro","dac","tyl"]]},
+{t:"Mythology",w:[["per","se","pho","ne"],["a","phro","di","te"],["di","o","ny","sus"],["val","kyr","i","es"],["hep","ha","es","tus"]]},
+{t:"Desserts",w:[["choc","o","late","s"],["ti","ra","mi","su"],["ba","kla","va","s"],["ma","ca","ron","s"],["straw","ber","ri","es"]]},
+{t:"Drinks",w:[["cap","puc","ci","no"],["mar","ga","ri","ta"],["lem","on","ade","s"],["mi","mo","sa","s"],["san","gri","a","s"]]},
+{t:"Hobbies",w:[["pho","tog","ra","phy"],["cal","lig","ra","phy"],["em","broi","der","y"],["vol","un","teer","ing"],["ge","ne","al","ogy"]]},
+{t:"Professions",w:[["ar","chi","tect","s"],["en","gi","neer","s"],["jour","nal","ist","s"],["e","lec","tri","cian"],["mu","si","cian","s"]]},
+{t:"Travel",w:[["des","ti","na","tion"],["ad","ven","ture","s"],["pas","sen","ger","s"],["it","in","er","ary"],["back","pack","er","s"]]},
+{t:"School Subjects",w:[["math","e","mat","ics"],["ge","og","ra","phy"],["bi","ol","o","gy"],["vo","cab","u","lary"],["el","e","men","tary"]]},
+{t:"Office",w:[["doc","u","ment","s"],["cal","cu","la","tor"],["pres","en","ta","tion"],["sec","re","tar","y"],["man","a","ge","ment"]]},
+{t:"Kitchen",w:[["re","frig","er","ator"],["mi","cro","wave","s"],["dish","wash","er","s"],["u","ten","sil","s"],["col","an","der","s"]]},
+{t:"US States",w:[["cal","i","for","nia"],["min","ne","so","ta"],["ok","la","ho","ma"],["vir","gin","i","a"],["lou","is","i","ana"]]},
+{t:"Ocean Life",w:[["oc","to","pus","es"],["man","a","tee","s"],["bar","ra","cu","da"],["a","nem","on","es"],["jel","ly","fish","es"]]},
+{t:"Mountains",w:[["ki","li","man","jaro"],["a","con","ca","gua"],["an","na","pur","na"],["ap","pa","lach","ian"],["hi","ma","la","yas"]]},
+{t:"Math",w:[["e","qua","tion","s"],["frac","ti","on","al"],["ge","om","e","try"],["al","ge","bra","ic"],["ex","po","nen","tial"]]},
+{t:"Chemistry",w:[["mol","e","cu","lar"],["so","lu","tion","s"],["re","ac","tion","s"],["ox","i","da","tion"],["cat","a","lyst","s"]]},
+{t:"Literature",w:[["pa","ra","graph","s"],["nar","ra","tor","s"],["pro","tag","on","ist"],["met","a","phor","s"],["al","le","go","ry"]]},
+{t:"Film",w:[["di","rec","tor","s"],["pro","du","cer","s"],["cin","e","ma","tic"],["doc","u","men","tary"],["an","i","ma","tion"]]},
+{t:"Praise",w:[["ex","cep","tion","al"],["spec","tac","u","lar"],["ad","mir","a","ble"],["in","cred","i","ble"],["mag","nif","i","cent"]]},
+{t:"Calamity",w:[["hor","ri","fi","ed"],["ter","ri","fi","ed"],["dis","as","tro","us"],["ca","tas","tro","phic"],["ap","pal","ling","ly"]]},
+{t:"Reptiles",w:[["i","gu","a","na"],["cha","me","le","on"],["cro","co","di","le"],["a","na","con","da"],["ter","ra","pin","s"]]},
+{t:"Vegetables",w:[["as","par","a","gus"],["ar","ti","choke","s"],["cau","li","flow","er"],["cu","cum","ber","s"],["po","ta","to","es"]]},
+{t:"Fruits",w:[["rasp","ber","ri","es"],["pi","ne","ap","ple"],["wa","ter","mel","on"],["can","ta","loupe","s"],["po","me","gra","nate"]]},
+{t:"Shapes",w:[["tri","an","gle","s"],["rec","tan","gle","s"],["pen","ta","gon","s"],["hex","a","gon","s"],["oc","ta","gon","s"]]},
+{t:"Scientists",w:[["ga","li","le","o"],["cop","er","ni","cus"],["ar","is","tot","le"],["arch","i","me","des"],["new","ton","i","an"]]},
+{t:"Breads",w:[["ba","guet","te","s"],["ci","a","bat","ta"],["fo","cac","ci","a"],["pum","per","nick","el"],["mul","ti","grain","s"]]},
+{t:"Pasta",w:[["fet","tuc","ci","ne"],["ra","vi","o","li"],["tor","tel","li","ni"],["ri","ga","to","ni"],["mac","a","ro","ni"]]},
+{t:"Cheese",w:[["moz","za","rel","la"],["gor","gon","zo","la"],["mas","car","po","ne"],["pro","vo","lo","ne"],["par","mi","gia","na"]]},
+{t:"More Instruments",w:[["xy","lo","phone","s"],["bal","a","lai","ka"],["tam","bou","rine","s"],["har","psi","chord","s"],["did","ge","ri","doo"]]},
+{t:"American Cities",w:[["phil","a","del","phia"],["min","ne","ap","olis"],["cin","cin","na","ti"],["bal","ti","mo","re"],["al","bu","quer","que"]]},
+{t:"European Lands",w:[["ro","ma","ni","a"],["bul","gar","i","a"],["es","to","ni","a"],["lith","u","an","ia"],["al","ba","ni","a"]]},
+{t:"South American",w:[["co","lom","bi","a"],["e","cu","a","dor"],["pe","ru","vi","an"],["bo","liv","i","a"],["u","ru","gua","yan"]]},
+{t:"Asian Lands",w:[["ma","lay","si","a"],["mon","gol","i","a"],["uz","bek","i","stan"],["af","ghan","i","stan"],["ban","gla","des","hi"]]},
+{t:"African Lands",w:[["e","thi","op","ia"],["ma","da","gas","car"],["mau","ri","ta","nia"],["na","mi","bi","a"],["mo","zam","bi","que"]]},
+{t:"Architecture",w:[["pyr","a","mid","al"],["col","os","se","um"],["a","cro","pol","is"],["mon","u","men","tal"],["ar","chi","tec","ture"]]},
+{t:"Civilizations",w:[["e","gyp","tian","s"],["ro","ma","nes","que"],["by","zan","ti","um"],["ba","by","lon","ia"],["per","si","an","s"]]},
+{t:"Deep Thought",w:[["con","tem","plat","ing"],["med","i","tat","ing"],["de","lib","er","ate"],["in","ves","ti","gate"],["a","na","lyz","ing"]]},
+{t:"Historical Figures",w:[["na","po","le","on"],["cle","o","pa","tra"],["ne","fer","ti","ti"],["al","ex","an","der"],["e","li","za","beth"]]},
+{t:"Car Brands",w:[["to","yo","ta","s"],["fer","ra","ri","s"],["lam","bor","ghi","ni"],["chev","ro","let","s"],["vol","ks","wa","gen"]]},
+{t:"Illness",w:[["in","flu","en","za"],["ma","lar","i","a"],["di","ab","e","tes"],["pneu","mo","ni","a"],["hep","a","ti","tis"]]},
+{t:"Medical Fields",w:[["pe","di","at","ric"],["car","di","ol","ogist"],["der","ma","tol","ogy"],["on","col","o","gist"],["neu","rol","o","gy"]]},
+{t:"Pets",w:[["par","ak","eet","s"],["cock","a","tiel","s"],["ca","nar","i","es"],["chi","hua","hua","s"],["po","me","ra","nian"]]},
+{t:"Ancient Egypt",w:[["hi","e","ro","glyph"],["pa","py","rus","es"],["ob","e","lisk","s"],["mum","mi","fi","ed"],["sar","co","pha","gus"]]},
+{t:"Ancient Rome",w:[["glad","i","a","tor"],["a","que","duct","s"],["char","i","ot","s"],["cen","tu","ri","on"],["le","gion","ar","y"]]},
+{t:"Military",w:[["bat","tal","ion","s"],["ar","til","ler","y"],["in","fan","try","men"],["com","man","der","s"],["mer","ce","nar","ies"]]},
+{t:"Royalty",w:[["ar","is","toc","rat"],["nob","il","i","ty"],["so","ver","eign","ty"],["am","bas","sa","dor"],["chan","cel","lor","s"]]},
+{t:"Geography",w:[["pe","nin","su","la"],["ar","chi","pel","ago"],["con","ti","nent","s"],["hem","i","sphere","s"],["e","qua","to","rial"]]},
+{t:"Water Bodies",w:[["o","ce","an","s"],["res","er","voir","s"],["es","tu","ar","y"],["wat","er","fall","s"],["trib","u","tar","y"]]},
+{t:"Religion",w:[["chris","tian","i","ty"],["ca","thol","i","cism"],["prot","es","tant","ism"],["ag","nos","ti","cism"],["mon","as","ter","ies"]]},
+{t:"Philosophy",w:[["ex","is","ten","tial"],["me","ta","phys","ics"],["on","tol","o","gy"],["de","ter","min","ism"],["i","de","al","ism"]]},
+{t:"Energy",w:[["e","lec","tri","cal"],["ki","net","i","cs"],["po","ten","tial","s"],["chem","i","cal","s"],["bat","ter","i","es"]]},
+{t:"Geology",w:[["ge","o","log","ist"],["pa","le","on","tology"],["sed","i","men","tary"],["met","a","mor","phic"],["tec","ton","ic","s"]]},
+{t:"Space",w:[["cos","mol","o","gy"],["as","tro","naut","s"],["sa","tel","lite","s"],["pla","ne","tar","ium"],["u","ni","ver","sal"]]},
+{t:"Adverbs",w:[["glo","ri","ous","ly"],["sus","pi","cious","ly"],["mys","ter","ious","ly"],["vic","to","ri","ously"],["un","for","tu","nately"]]},
+{t:"Emphasis",w:[["ex","cel","lent","ly"],["ab","so","lute","ly"],["pos","i","tive","ly"],["e","norm","ous","ly"],["pre","ten","tious","ly"]]},
+{t:"Cooking Verbs",w:[["mar","i","nat","ing"],["car","a","mel","ize"],["pas","teur","iz","ed"],["sea","son","ing","s"],["e","vap","o","rate"]]},
+{t:"Communication",w:[["com","mu","ni","cate"],["in","ter","pret","ing"],["ne","go","ti","ate"],["col","lab","or","ate"],["ar","ti","cu","late"]]},
+{t:"More Subjects",w:[["phil","os","o","phy"],["so","ci","ol","ogy"],["psy","chol","o","gy"],["an","thro","po","logy"],["archae","ol","o","gy"]]},
+{t:"Artists",w:[["il","lus","tra","tor"],["cal","lig","ra","phers"],["car","i","ca","tures"],["por","trait","ist","s"],["pho","tog","ra","phers"]]},
+{t:"Optics",w:[["mi","cro","scope","s"],["per","i","scope","s"],["bin","oc","u","lar"],["spec","trom","e","ter"],["kal","ei","do","scope"]]},
+{t:"Olympics",w:[["gym","nas","tic","s"],["a","qua","tic","s"],["e","ques","tri","an"],["mar","a","thon","s"],["dec","ath","lon","s"]]},
+{t:"Magic",w:[["en","chant","ment","s"],["sor","cer","er","s"],["in","can","ta","tion"],["nec","ro","man","cer"],["al","che","mist","s"]]},
+{t:"Constellations",w:[["and","rom","e","da"],["a","qua","ri","us"],["cap","ri","corn","s"],["cas","si","o","peia"],["sa","git","ta","rius"]]},
+{t:"Destruction",w:[["de","mol","ish","ing"],["ob","lit","er","ate"],["an","ni","hi","late"],["de","vas","tat","ing"],["e","rad","i","cate"]]},
+{t:"Creation",w:[["gen","er","at","ing"],["man","u","fac","ture"],["fab","ri","cat","ing"],["de","vel","op","ment"],["con","struc","tion","s"]]},
+{t:"Quantity",w:[["mil","lion","air","es"],["bil","lion","air","es"],["in","fin","i","ty"],["per","cen","tag","e"],["nu","mer","i","cal"]]},
+{t:"Duration",w:[["e","ter","ni","ty"],["per","pet","u","al"],["e","pi","sod","ic"],["gen","er","a","tion"],["chron","i","cal","ly"]]},
+{t:"Birds Again",w:[["al","ba","tross","es"],["fla","min","go","s"],["cock","a","too","s"],["nigh","tin","gale","s"],["a","vi","ar","ies"]]},
+{t:"Plants Again",w:[["car","na","tion","s"],["pe","tu","ni","as"],["hi","bis","cus","es"],["ger","a","ni","ums"],["a","za","le","as"]]},
+{t:"Action Verbs",w:[["ac","cel","er","ate"],["de","cel","er","ate"],["al","ter","nat","ing"],["nav","i","gat","ing"],["ac","ti","vat","ed"]]},
+{t:"Dance",w:[["bal","ler","i","na"],["cho","re","og","raphy"],["pir","ou","ette","s"],["per","for","man","ce"],["ar","a","besque","s"]]},
+{t:"Spices",w:[["co","ri","an","der"],["ro","se","mar","y"],["pep","per","corn","s"],["car","da","mom","s"],["fen","u","greek","s"]]},
+{t:"Sweets",w:[["pep","per","mint","s"],["lol","li","pop","s"],["mar","sh","mal","lows"],["liq","uo","ric","e"],["choc","o","lat","ier"]]},
+{t:"Currency Words",w:[["mon","et","ar","y"],["fi","nan","cial","s"],["in","ves","tor","s"],["en","tre","pre","neur"],["cap","i","tal","ism"]]},
+{t:"Politics",w:[["dem","o","cra","cy"],["re","pub","li","can"],["par","lia","men","tary"],["dip","lo","mat","ic"],["leg","is","la","tor"]]},
+{t:"Mind States",w:[["med","i","ta","tion"],["con","scious","ness","es"],["sub","con","scious","ly"],["hyp","no","ti","zed"],["psy","cho","ac","tive"]]},
+{t:"Computer Parts",w:[["mo","ni","tor","s"],["tran","sis","tor","s"],["moth","er","board","s"],["ca","pac","i","tor"],["mem","or","i","es"]]},
+{t:"Skin Things",w:[["der","ma","ti","tis"],["mel","an","o","ma"],["sun","scre","en","s"],["mois","tur","iz","er"],["ex","fo","li","ate"]]},
+{t:"Negative",w:[["pes","si","mis","tic"],["neg","a","tiv","ity"],["cyn","i","cal","ly"],["mis","an","thro","pic"],["con","temp","tu","ous"]]},
+{t:"Positive",w:[["op","ti","mis","tic"],["af","fec","tion","ate"],["com","pas","sion","ate"],["em","path","et","ic"],["ben","e","fi","cent"]]},
+{t:"Story Types",w:[["bi","og","ra","phy"],["his","tor","i","cal"],["fan","ta","si","es"],["mys","ter","i","es"],["ad","ven","tur","ous"]]},
+{t:"Adventure",w:[["moun","tain","eer","ing"],["pa","ra","glid","ing"],["pa","ra","sail","ing"],["spe","le","ol","ogy"],["ex","plor","a","tion"]]},
+{t:"Logic",w:[["ar","gu","ment","s"],["syl","lo","gism","s"],["de","duc","tion","s"],["ra","tion","ale","s"],["log","i","cal","ly"]]}
+];
+/* Drop placeholder puzzles (the last two are intentionally invalid - filter them) */
+const PUZZLES=P.filter(p=>p.w.every(w=>w.length===4 && !w.includes("x")));
+
+/* ============= STORAGE (graceful) ============= */
+const STORE={
+  get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+
+/* ============= DATE & SEED ============= */
+function dateKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function parseKey(k){const[y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)}
+function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function shuffleSeeded(arr,seed){const r=mulberry32(seed);const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+/* ============= PUZZLE GEN ============= */
+function getPuzzle(dateK){
+  const h=hashStr(dateK);
+  const idx=h%PUZZLES.length;
+  const base=PUZZLES[idx];
+  const flat=[];
+  base.w.forEach((w,wi)=>w.forEach((f,fi)=>flat.push({frag:f,word:wi,pos:fi})));
+  const tiles=shuffleSeeded(flat,h^0xABCDEF);
+  return{theme:base.t,words:base.w,wordStrs:base.w.map(w=>w.join("")),tiles}
+}
+
+/* ============= PERMUTATIONS ============= */
+function perms(arr){
+  if(arr.length<=1)return[arr];
+  const r=[];
+  for(let i=0;i<arr.length;i++){
+    const rest=arr.slice(0,i).concat(arr.slice(i+1));
+    for(const p of perms(rest))r.push([arr[i],...p])
+  }
+  return r
+}
+
+/* ============= STATE ============= */
+let curDate=new Date();
+curDate.setHours(0,0,0,0);
+let curKey=dateKey(curDate);
+let puzzle=null;
+let progress=null;
+let selected=[];
+let lastWrong=null;
+let calCursor=new Date(curDate.getFullYear(),curDate.getMonth(),1);
+
+function loadProgress(key){
+  const p=STORE.get("q-"+key);
+  return p||{solvedWords:[],solvedTiles:[],wrongCount:0,done:false}
+}
+function saveProgress(){
+  STORE.set("q-"+curKey,progress);
+  const all=STORE.get("q-index")||{};
+  all[curKey]={d:progress.done,p:progress.solvedWords.length};
+  STORE.set("q-index",all);
+}
+
+/* ============= RENDER ============= */
+const $=id=>document.getElementById(id);
+
+function formatDate(d){
+  const today=new Date();today.setHours(0,0,0,0);
+  const diff=Math.round((d-today)/86400000);
+  const opts={weekday:"short",month:"short",day:"numeric"};
+  let label=d.toLocaleDateString("en-US",opts);
+  if(diff===0)label="Today · "+label;
+  else if(diff===-1)label="Yesterday · "+label;
+  else if(diff===1)label="Tomorrow · "+label;
+  return label
+}
+
+function renderDate(){
+  $("current-date").textContent=formatDate(curDate);
+  const today=new Date();today.setHours(0,0,0,0);
+  $("next-day").disabled=curDate>=today;
+}
+
+function renderGrid(){
+  const g=$("grid");
+  g.innerHTML="";
+  puzzle.tiles.forEach((tile,i)=>{
+    const el=document.createElement("div");
+    el.className="tile";
+    el.textContent=tile.frag;
+    el.dataset.i=i;
+    if(progress.solvedTiles.includes(i))el.classList.add("gone");
+    if(selected.includes(i))el.classList.add("sel");
+    el.addEventListener("click",()=>toggleTile(i));
+    g.appendChild(el);
+  });
+}
+
+function renderSolved(){
+  const r=$("solved-row");
+  r.innerHTML="";
+  progress.solvedWords.forEach(wi=>{
+    const el=document.createElement("div");
+    el.className="solved-word";
+    el.textContent=puzzle.wordStrs[wi];
+    r.appendChild(el);
+  });
+}
+
+function renderBanner(){
+  const b=$("banner-slot");
+  b.innerHTML="";
+  if(progress.done){
+    const el=document.createElement("div");
+    el.className="complete";
+    el.innerHTML="<h2>🎉 Complete!</h2><p>Theme: <strong>"+puzzle.theme+"</strong> · "+progress.wrongCount+" wrong guess"+(progress.wrongCount===1?"":"es")+"</p>";
+    b.appendChild(el);
+  }
+}
+
+function renderControls(){
+  const n=selected.length;
+  const info=$("sel-info");
+  if(progress.done){info.textContent="Puzzle complete!";info.classList.remove("full")}
+  else if(n===0){info.textContent="Tap tiles to select fragments";info.classList.remove("full")}
+  else if(n<4){info.textContent="Selected "+n+"/4";info.classList.remove("full")}
+  else{info.textContent="Ready to submit!";info.classList.add("full")}
+  $("submit-btn").disabled=n!==4||progress.done;
+  $("clear-btn").disabled=n===0||progress.done;
+  $("undo-btn").disabled=!lastWrong||progress.done;
+}
+
+function render(){renderDate();renderGrid();renderSolved();renderBanner();renderControls()}
+
+function loadDate(key){
+  curKey=key;
+  curDate=parseKey(key);
+  puzzle=getPuzzle(curKey);
+  progress=loadProgress(curKey);
+  selected=[];
+  lastWrong=null;
+  render();
+}
+
+/* ============= GAMEPLAY ============= */
+function toggleTile(i){
+  if(progress.done)return;
+  if(progress.solvedTiles.includes(i))return;
+  const idx=selected.indexOf(i);
+  if(idx>=0){selected.splice(idx,1)}
+  else{if(selected.length>=4)return;selected.push(i)}
+  lastWrong=null;
+  render();
+}
+
+function checkSelection(){
+  const frags=selected.map(i=>puzzle.tiles[i].frag);
+  const allP=perms(frags);
+  for(const p of allP){
+    const joined=p.join("");
+    for(let wi=0;wi<puzzle.wordStrs.length;wi++){
+      if(puzzle.wordStrs[wi]===joined && !progress.solvedWords.includes(wi)){
+        return wi;
+      }
+    }
+  }
+  return -1;
+}
+
+function showToast(msg,kind){
+  const t=$("toast");
+  t.className="toast show"+(kind?" "+kind:"");
+  t.textContent=msg;
+  clearTimeout(t._tm);
+  t._tm=setTimeout(()=>t.classList.remove("show"),1800);
+}
+
+function submit(){
+  if(selected.length!==4)return;
+  const matched=checkSelection();
+  if(matched>=0){
+    progress.solvedWords.push(matched);
+    progress.solvedTiles.push(...selected);
+    if(progress.solvedWords.length===5)progress.done=true;
+    selected=[];
+    lastWrong=null;
+    saveProgress();
+    render();
+    showToast(progress.done?"All words found! 🎉":"Correct! "+puzzle.wordStrs[matched].toUpperCase(),"ok");
+  }else{
+    lastWrong=selected.slice();
+    progress.wrongCount++;
+    saveProgress();
+    document.querySelectorAll(".tile.sel").forEach(t=>{
+      t.classList.add("shake");
+      setTimeout(()=>t.classList.remove("shake"),400);
+    });
+    selected=[];
+    setTimeout(()=>{render();showToast("Not quite — try again","err")},200);
+  }
+}
+
+function clearSel(){selected=[];lastWrong=null;render()}
+function undo(){if(lastWrong){selected=lastWrong.slice();lastWrong=null;render()}}
+
+/* ============= NAVIGATION ============= */
+function prevDay(){
+  const d=new Date(curDate);d.setDate(d.getDate()-1);
+  loadDate(dateKey(d));
+}
+function nextDay(){
+  const today=new Date();today.setHours(0,0,0,0);
+  if(curDate>=today)return;
+  const d=new Date(curDate);d.setDate(d.getDate()+1);
+  loadDate(dateKey(d));
+}
+
+/* ============= CALENDAR ============= */
+function openCal(){
+  calCursor=new Date(curDate.getFullYear(),curDate.getMonth(),1);
+  renderCal();
+  $("cal-modal").classList.add("open");
+}
+function closeCal(){$("cal-modal").classList.remove("open")}
+function renderCal(){
+  const m=$("cal-month");
+  m.textContent=calCursor.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+  const g=$("cal-grid");
+  g.innerHTML="";
+  ["S","M","T","W","T","F","S"].forEach(d=>{const el=document.createElement("div");el.className="cal-dow";el.textContent=d;g.appendChild(el)});
+  const first=new Date(calCursor.getFullYear(),calCursor.getMonth(),1);
+  const offset=first.getDay();
+  for(let i=0;i<offset;i++){const el=document.createElement("div");el.className="cal-cell empty";g.appendChild(el)}
+  const lastDay=new Date(calCursor.getFullYear(),calCursor.getMonth()+1,0).getDate();
+  const today=new Date();today.setHours(0,0,0,0);
+  const idx=STORE.get("q-index")||{};
+  for(let d=1;d<=lastDay;d++){
+    const date=new Date(calCursor.getFullYear(),calCursor.getMonth(),d);
+    const k=dateKey(date);
+    const el=document.createElement("div");
+    el.className="cal-cell";
+    el.textContent=d;
+    if(date>today)el.classList.add("future");
+    else el.addEventListener("click",()=>{loadDate(k);closeCal()});
+    if(date.getTime()===today.getTime())el.classList.add("today");
+    if(k===curKey)el.classList.add("current");
+    const st=idx[k];
+    if(st){
+      if(st.d)el.classList.add("done");
+      else if(st.p>0)el.classList.add("partial");
+      const dot=document.createElement("div");dot.className="dot";el.appendChild(dot);
+    }
+    g.appendChild(el);
+  }
+}
+function calPrev(){calCursor=new Date(calCursor.getFullYear(),calCursor.getMonth()-1,1);renderCal()}
+function calNext(){
+  const today=new Date();const next=new Date(calCursor.getFullYear(),calCursor.getMonth()+1,1);
+  if(next>new Date(today.getFullYear(),today.getMonth()+1,1))return;
+  calCursor=next;renderCal();
+}
+
+/* ============= BIND ============= */
+$("submit-btn").addEventListener("click",submit);
+$("clear-btn").addEventListener("click",clearSel);
+$("undo-btn").addEventListener("click",undo);
+$("prev-day").addEventListener("click",prevDay);
+$("next-day").addEventListener("click",nextDay);
+$("cal-btn").addEventListener("click",openCal);
+$("cal-close").addEventListener("click",closeCal);
+$("cal-modal").addEventListener("click",e=>{if(e.target.id==="cal-modal")closeCal()});
+$("cal-prev").addEventListener("click",calPrev);
+$("cal-next").addEventListener("click",calNext);
+
+/* ============= SERVICE WORKER ============= */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+
+/* ============= INIT ============= */
+loadDate(curKey);
+</script>
+</body>
+</html>
